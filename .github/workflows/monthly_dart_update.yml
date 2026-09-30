@@ -24,6 +24,21 @@ jobs:
         run: |
           test -n "$DART_API_KEY" || (echo "DART_API_KEY is missing." && exit 1)
           echo "DART_API_KEY is configured."
+          python - <<'PY'
+          import os, requests
+          key = os.environ["DART_API_KEY"]
+          r = requests.get(
+              "https://opendart.fss.or.kr/api/company.json",
+              params={"crtfc_key": key, "corp_code": "01344831"},
+              timeout=30,
+          )
+          data = r.json()
+          print("OpenDART status:", data.get("status"))
+          print("OpenDART message:", data.get("message"))
+          if str(data.get("status")) != "000":
+              raise SystemExit("OpenDART API authentication/access check failed.")
+          print("OpenDART API access: OK")
+          PY
 
       - name: Collect DART data
         env:
