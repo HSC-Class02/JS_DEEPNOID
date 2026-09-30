@@ -264,7 +264,8 @@ def derive_metrics(df):
     add("cfo_to_net_income", "cfo", "net_income")
 
     df["net_debt"] = df["interest_bearing_debt"] - df["cash"]
-    df["ebitda"] = df["operating_income"]
+    df["ebitda"] = df["operating_income"] + df["depreciation"].fillna(0) + df["amortization"].fillna(0)
+    df.loc[df[["depreciation", "amortization"]].isna().all(axis=1), "ebitda"] = pd.NA
 
     annual = df[df.category == "Annual"].sort_values("year").copy()
     annual["revenue_growth"] = annual["revenue"].pct_change()
