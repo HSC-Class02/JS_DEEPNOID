@@ -117,6 +117,8 @@ ALIASES = {
     "controlling_net_income": ["지배기업의 소유주에게 귀속되는 당기순이익", "지배기업 소유주지분 순이익"],
     "eps": ["기본주당이익", "기본주당순이익"],
     "cfo": ["영업활동현금흐름"],
+    "depreciation": ["감가상각비"],
+    "amortization": ["무형자산상각비", "상각비"],
     "cfi": ["투자활동현금흐름"],
     "cff": ["재무활동현금흐름"],
     "capex": ["유형자산의 취득", "유형자산 취득"],
@@ -256,7 +258,7 @@ def derive_metrics(df):
     add("net_margin", "net_income", "revenue")
     add("ebitda_margin", "operating_income", "revenue")
     add("current_ratio", "current_assets", "current_liabilities")
-    add("quick_ratio", "cash", "current_liabilities")
+    df["quick_assets"] = df["cash"].fillna(0) + df["receivables"].fillna(0)\n    add("quick_ratio", "quick_assets", "current_liabilities")
     add("debt_ratio", "total_liabilities", "total_assets")
     add("asset_turnover", "revenue", "total_assets")
     add("cfo_to_net_income", "cfo", "net_income")
