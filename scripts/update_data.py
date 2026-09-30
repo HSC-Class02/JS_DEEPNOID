@@ -25,21 +25,30 @@ S.headers.update({"User-Agent": "JS_DEEPNOID-DART-dashboard/1.0"})
 def get_json(endpoint, **params):
     params["crtfc_key"] = KEY
     last_error = None
-    for attempt in range(4):
+    for attempt in range(5):
         try:
             r = S.get(f"{BASE}/{endpoint}.json", params=params, timeout=90)
+            if r.status_code == 429:
+                raise RuntimeError(f"{endpoint}: HTTP 429 Too Many Requests")
             r.raise_for_status()
             data = r.json()
             status = str(data.get("status", ""))
+            message = data.get("message", "")
             if status == "000":
+                time.sleep(0.25)
                 return data
-            # 013/020 etc. can mean no data or rate/parameter issues; keep the run alive.
-            if status in {"013", "020"}:
+            if status == "013":
+                # No data is a normal condition for unavailable historical/current periods.
                 return None
-            raise RuntimeError(f"{endpoint}: {status} {data.get('message', '')}")
+            if status == "020":
+                # Do not silently treat API rate limiting as "no data".
+                raise RuntimeError(f"{endpoint}: API limit (020) {message}")
+            raise RuntimeError(f"{endpoint}: {status} {message}")
         except Exception as exc:
             last_error = exc
-            time.sleep(2 ** attempt)
+            wait = min(30, 3 ** attempt)
+            print(f"[retry {attempt + 1}/5] {endpoint}: {exc}; waiting {wait}s", flush=True)
+            time.sleep(wait)
     raise RuntimeError(f"{endpoint} failed after retries: {last_error}")
 
 
@@ -134,13 +143,22 @@ def download_raw_document(receipt_no, year, report_name):
     target = folder / f"{receipt_no}_{safe}.zip"
     if target.exists():
         return
-    r = S.get(
-        f"{BASE}/document.xml",
-        params={"crtfc_key": KEY, "rcept_no": receipt_no},
-        timeout=120,
-    )
-    if r.ok and r.content[:2] == b"PK":
-        target.write_bytes(r.content)
+    for attempt in range(3):
+        try:
+            r = S.get(
+                f"{BASE}/document.xml",
+                params={"crtfc_key": KEY, "rcept_no": receipt_no},
+                timeout=120,
+            )
+            if r.ok and r.content[:2] == b"PK":
+                target.write_bytes(r.content)
+                time.sleep(0.25)
+                return
+            print(f"[raw] skip {receipt_no}: HTTP {r.status_code}", flush=True)
+            return
+        except Exception as exc:
+            print(f"[raw retry {attempt + 1}/3] {receipt_no}: {exc}", flush=True)
+            time.sleep(2 ** attempt)
 
 
 def collect_filings():
@@ -148,6 +166,7 @@ def collect_filings():
     current_year = pd.Timestamp.now().year
 
     for year in range(int(CFG["start_year"]), current_year + 1):
+        print(f"[filings] {year}", flush=True)
         page_no = 1
         while True:
             data = get_json(
@@ -220,6 +239,7 @@ def get_accounts(year, report_code):
 def collect_financials():
     rows = []
     for year in range(2015, pd.Timestamp.now().year + 1):
+        print(f"[financials] {year}", flush=True)
         for category, report_code in [
             ("Annual", "11011"),
             ("Half-year", "11012"),
