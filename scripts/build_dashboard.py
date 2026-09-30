@@ -13,7 +13,10 @@ df = pd.read_csv(DATA).sort_values(["year", "category", "report_code"])
 annual = df[df.category == "Annual"].sort_values("year")
 half = df[df.category == "Half-year"].sort_values("year")
 quarter = df[df.category == "Quarterly"].sort_values(["year", "report_code"])
-latest = df.iloc[-1]
+period_priority = {"11011": 0, "11013": 1, "11012": 2, "11014": 3}
+df["_period_priority"] = df["report_code"].astype(str).map(period_priority).fillna(-1)
+latest = df.sort_values(["year", "_period_priority"]).iloc[-1]
+latest_period = f"{int(latest['year'])} {latest['period']}"
 
 
 def fmt(v, pct=False, decimals=0):
@@ -58,7 +61,9 @@ def table(data, columns):
                 "current_ratio", "quick_ratio"
             }
             value = row.get(key)
-            if key in {"current_ratio", "quick_ratio", "asset_turnover"}:
+            if key == "year":
+                text_value = "—" if pd.isna(value) else str(int(float(value)))
+            elif key in {"current_ratio", "quick_ratio", "asset_turnover"}:
                 text_value = fmt(value, False, 2)
             elif key in {"dso", "dio", "dpo", "ccc"}:
                 text_value = fmt(value, False, 1)
@@ -154,7 +159,8 @@ th:first-child,td:first-child{{text-align:left}} th{{position:sticky;top:0;backg
 <main class="wrap">
 <div class="hero">
 <div><span class="badge">OpenDART · KOSDAQ 315640</span><h1>DEEPNOID Financial Dashboard</h1>
-<p class="muted">2010년 이후 정기보고서 수집 · 구조화 재무정보는 OpenDART 제공 범위인 2015년 이후부터 표시 · 매월 1일 자동 업데이트</p></div>
+<p class="muted">2010년 이후 정기보고서 수집 · 구조화 재무정보는 OpenDART 제공 범위인 2015년 이후부터 표시 · 매월 1일 자동 업데이트</p>
+<p class="muted"><strong>Latest available period: {latest_period}</strong></p></div>
 </div>
 <section class="grid">{card_html}</section>
 <section class="section"><h2>Financial Trend</h2><div class="charts">
