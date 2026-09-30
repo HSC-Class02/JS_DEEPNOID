@@ -17,8 +17,30 @@ latest = df.iloc[-1]
 
 
 def fmt(v, pct=False, decimals=0):
+    """
+    Format numeric dashboard values safely.
+
+    OpenDART-derived CSV fields can occasionally be read as strings when a
+    column contains mixed values. Convert numeric-looking strings before
+    applying Python's numeric format specifiers, and preserve genuine text.
+    """
     if pd.isna(v):
         return "—"
+
+    if isinstance(v, str):
+        raw = v.strip()
+        if raw in {"", "—", "-"}:
+            return "—"
+        numeric = pd.to_numeric(raw, errors="coerce")
+        if pd.isna(numeric):
+            return raw
+        v = float(numeric)
+    else:
+        numeric = pd.to_numeric(v, errors="coerce")
+        if pd.isna(numeric):
+            return str(v)
+        v = float(numeric)
+
     if pct:
         return f"{v * 100:,.1f}%"
     return f"{v:,.{decimals}f}"
