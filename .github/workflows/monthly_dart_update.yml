@@ -18,6 +18,13 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Verify DART API key
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: |
+          test -n "$DART_API_KEY" || (echo "DART_API_KEY is missing." && exit 1)
+          echo "DART_API_KEY is configured."
+
       - name: Collect DART data
         env:
           DART_API_KEY: ${{ secrets.DART_API_KEY }}
